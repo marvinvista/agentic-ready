@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agentic-ready.dev/schema/v1/agentic-ready.schema.json",
+  "name": "agentic-ready",
+  "homepage": "https://github.com/marvinvista/agentic-ready",
+  "summary": "A smoke test for whether agents can discover, evaluate, and use your B2B product.",
+  "docs": {
+    "human": "https://github.com/marvinvista/agentic-ready/blob/main/README.md",
+    "llms_txt": "https://github.com/marvinvista/agentic-ready/blob/main/llms.txt"
+  },
+  "interfaces": {
+    "cli": "agentic-ready",
+    "python_module": "agentic_ready"
+  },
+  "pricing": {
+    "public_url": "https://github.com/marvinvista/agentic-ready",
+    "units": ["audit_target"],
+    "free_trial_or_sandbox": true
+  },
+  "proof": {
+    "evals": ["https://github.com/marvinvista/agentic-ready/tree/main/tests"],
+    "examples": ["https://github.com/marvinvista/agentic-ready/tree/main/examples/reports"],
+    "source": "https://github.com/marvinvista/agentic-ready"
+  },
+  "updated_at": "2026-05-19T00:00:00Z"
+}

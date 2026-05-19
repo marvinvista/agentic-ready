@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import urlparse
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SELF = Path(__file__).resolve().relative_to(ROOT).as_posix()
+TEXT_EXTENSIONS = {
+    "",
+    ".cfg",
+    ".css",
+    ".html",
+    ".ini",
+    ".json",
+    ".md",
+    ".py",
+    ".sh",
+    ".toml",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
+
+
+@dataclass(frozen=True)
+class PatternRule:
+    label: str
+    pattern: re.Pattern[str]
+
+
+PATTERNS = (
+    PatternRule("local filesystem path", re.compile(r"/Users/[A-Za-z0-9._-]+/", re.IGNORECASE)),
+    PatternRule("private repo name", re.compile(r"\bagentic-ready-private\b", re.IGNORECASE)),
+    PatternRule("private workspace name", re.compile(r"\bholocron\b", re.IGNORECASE)),
+    PatternRule("private synthesis path", re.compile(r"\bwiki/synthesis\b", re.IGNORECASE)),
+    PatternRule("raw corpus provenance", re.compile(r"\braw\s+(?:elena\s+)?corpus\b", re.IGNORECASE)),
+    PatternRule("private corpus provenance", re.compile(r"\belena\s+corpus\b", re.IGNORECASE)),
+    PatternRule("private alpha provenance", re.compile(r"\bprivate\s+alpha\b", re.IGNORECASE)),
+    PatternRule("OpenAI API key", re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b")),
+    PatternRule("GitHub token", re.compile(r"\b(?:ghp|github_pat)_[A-Za-z0-9_]{20,}\b")),
+    PatternRule("Slack token", re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b")),
+    PatternRule("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    PatternRule("private key block", re.compile(r"BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY")),
+)
+
+
+def main() -> int:
+    failures: list[str] = []
+    files = public_files()
+    failures.extend(scan_for_forbidden_patterns(files))
+    failures.extend(validate_markdown_links())
+    failures.extend(validate_manifest_links("agentic-ready.json"))
+    failures.extend(validate_manifest_links(".well-known/agentic-ready.json"))
+
+    if failures:
+        print("Public surface check failed:", file=sys.stderr)
+        for failure in failures:
+            print(f"- {failure}", file=sys.stderr)
+        return 1
+
+    print("Public surface ok")
+    return 0
+
+
+def public_files() -> tuple[Path, ...]:
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        paths = [ROOT / line for line in result.stdout.splitlines() if line]
+    except (OSError, subprocess.CalledProcessError):
+        paths = [path for path in ROOT.rglob("*") if ".git" not in path.parts]
+
+    return tuple(path for path in paths if should_scan(path))
+
+
+def should_scan(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    rel = path.resolve().relative_to(ROOT).as_posix()
+    if rel == SELF:
+        return False
+    return path.suffix.lower() in TEXT_EXTENSIONS
+
+
+def scan_for_forbidden_patterns(files: tuple[Path, ...]) -> list[str]:
+    failures: list[str] = []
+    for path in files:
+        rel = path.resolve().relative_to(ROOT).as_posix()
+        content = path.read_bytes()
+        if b"\0" in content:
+            continue
+        text = content.decode("utf-8", errors="replace")
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            for rule in PATTERNS:
+                if rule.pattern.search(line):
+                    failures.append(f"{rel}:{line_number}: {rule.label}")
+    return failures
+
+
+def validate_markdown_links() -> list[str]:
+    failures: list[str] = []
+    link_pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+    for path in public_files():
+        if path.suffix.lower() != ".md":
+            continue
+        rel = path.resolve().relative_to(ROOT).as_posix()
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            for match in link_pattern.finditer(line):
+                target = match.group(1).strip()
+                if should_skip_link(target):
+                    continue
+                link_path = (path.parent / target.split("#", 1)[0]).resolve()
+                try:
+                    link_path.relative_to(ROOT)
+                except ValueError:
+                    failures.append(f"{rel}:{line_number}: markdown link escapes repo: {target}")
+                    continue
+                if not link_path.exists():
+                    failures.append(f"{rel}:{line_number}: broken markdown link: {target}")
+    return failures
+
+
+def should_skip_link(target: str) -> bool:
+    if not target or target.startswith("#"):
+        return True
+    parsed = urlparse(target)
+    return parsed.scheme in {"http", "https", "mailto"}
+
+
+def validate_manifest_links(relative_path: str) -> list[str]:
+    path = ROOT / relative_path
+    if not path.exists():
+        return [f"{relative_path}: missing manifest"]
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"{relative_path}:{exc.lineno}: invalid JSON: {exc.msg}"]
+
+    failures: list[str] = []
+    for label, url in manifest_urls(data):
+        parsed = urlparse(url)
+        if parsed.netloc != "github.com" or parsed.path.count("/") < 4:
+            continue
+        parts = parsed.path.strip("/").split("/")
+        if parts[:2] != ["marvinvista", "agentic-ready"]:
+            failures.append(f"{relative_path}: {label} points outside public repo: {url}")
+            continue
+        if len(parts) >= 5 and parts[2] in {"blob", "tree"}:
+            repo_path = ROOT.joinpath(*parts[4:])
+            if not repo_path.exists():
+                failures.append(f"{relative_path}: {label} points to missing path: {url}")
+    return failures
+
+
+def manifest_urls(value, prefix: str = ""):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            label = f"{prefix}.{key}" if prefix else str(key)
+            yield from manifest_urls(child, label)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from manifest_urls(child, f"{prefix}[{index}]")
+    elif isinstance(value, str) and value.startswith("https://"):
+        yield prefix, value
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

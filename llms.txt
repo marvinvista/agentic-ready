@@ -1,0 +1,29 @@
+# agentic-ready
+
+`agentic-ready` is a CLI smoke test for whether agents can discover, evaluate, and use a B2B product.
+
+Blunt claim:
+
+Most B2B products are not ready for non-human users. This tool shows why.
+
+Primary command:
+
+```bash
+agentic-ready <path-or-url>
+```
+
+Checks:
+
+- Find: machine-readable discovery, docs, API references.
+- Call: OpenAPI, MCP/tool definitions, SDKs, auth, sandbox.
+- Trust: schemas, structured examples, errors, versioning, status/security proof.
+- Buy: pricing, usage limits, rate limits, plan boundaries, free/sandbox path.
+- Defend: defensible output layer.
+
+Important files:
+
+- README: /README.md
+- Example reports: /examples/reports/
+- CLI: /src/agentic_ready/cli.py
+- Smoke-test rules: /src/agentic_ready/rules.py
+- Tests: /tests/test_smoke.py

@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-ready"
+version = "0.1.0"
+description = "A smoke test for whether agents can discover, evaluate, and use your B2B product."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Marvin Vista" }]
+keywords = ["agents", "mcp", "llms.txt", "openapi", "b2b", "docs", "audit"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.scripts]
+agentic-ready = "agentic_ready.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/marvinvista/agentic-ready"
+Repository = "https://github.com/marvinvista/agentic-ready"
+Issues = "https://github.com/marvinvista/agentic-ready/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

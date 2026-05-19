@@ -1,0 +1,9 @@
+# Ready Product
+
+Documentation: /docs.md
+API reference: /openapi.json
+MCP: /.well-known/mcp.json
+Pricing: /pricing.md
+Status: /security.md
+
+This product has proprietary data, deep integrations, and a trusted compliance layer.

@@ -1,0 +1,19 @@
+Agentic readiness: Not ready
+Score: 0/5
+
+Why agents drop you:
+1. Agents cannot find a machine-readable product surface.
+2. No machine-readable API, MCP, SDK, auth, or sandbox path was found.
+3. The output contract is not clear enough for automated use.
+4. Buying and usage friction require a human to interpret.
+5. The defensible output layer is not visible.
+
+Next best fix:
+Publish OpenAPI or MCP, auth docs, and a sandbox/test-mode example.
+
+Evidence:
+- Find: fail - none
+- Call: fail - none
+- Trust: fail - none
+- Buy: fail - none
+- Defend: fail - none

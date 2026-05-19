@@ -1,0 +1,13 @@
+{
+  "name": "ready-product",
+  "tools": [
+    {
+      "name": "run_task",
+      "description": "Run a task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "input": { "type": "string" } }
+      }
+    }
+  ]
+}
